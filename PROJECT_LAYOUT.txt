@@ -1,0 +1,79 @@
+Project Layout - Budget Tracker
+================================
+
+Root Directory:
+.
+├── backend/              # Node.js + Express API server
+│   ├── .env               # Environment variables (sensitive; not committed normally)
+│   ├── package.json       # Backend dependencies and scripts
+│   ├── package-lock.json  # Locked dependency versions
+│   ├── server.js          # Express app bootstrap & Mongo connection
+│   ├── middleware/
+│   │   └── auth.js        # JWT auth middleware attaches user to request
+│   ├── models/            # Mongoose schemas (MongoDB collections)
+│   │   ├── User.js        # User accounts (name, email, password hash, profile picture)
+│   │   ├── Transaction.js # Income/expense transactions
+│   │   ├── Budget.js      # Monthly category budgets (unique index per user+cat+month+year)
+│   │   └── Group.js       # Groups, group expenses, settlements (split expenses)
+│   ├── routes/            # Express route modules (REST endpoints)
+│   │   ├── auth.js        # Authentication & profile endpoints (register/login/me/update)
+│   │   ├── transactions.js# CRUD + filters, summary, export for transactions
+│   │   ├── budget.js      # Budget CRUD + status breakdown
+│   │   ├── budgets.js     # (Appears duplicate or legacy; review necessity)
+│   │   └── groups.js      # Group management, members, expenses, settlements
+│   └── node_modules/      # Installed backend libraries
+│
+├── frontend/             # React + TypeScript single page app (UI)
+│   ├── package.json       # Frontend dependencies and scripts (react-scripts)
+│   ├── package-lock.json  # Locked frontend dependency versions
+│   ├── tsconfig.json      # TypeScript compiler configuration
+│   ├── public/            # Static HTML template & manifest
+│   │   ├── index.html     # Root HTML file loaded by CRA
+│   │   └── manifest.json  # Web app manifest
+│   ├── build/             # Production build output (generated)
+│   │   ├── index.html
+│   │   ├── asset-manifest.json
+│   │   ├── manifest.json
+│   │   └── static/        # Bundled JS/CSS assets
+│   └── src/               # Application source code
+│       ├── index.tsx      # React entry point, renders <App />
+│       ├── App.tsx        # Root component & routing composition
+│       ├── AuthContext.tsx# Re-export layer for auth context (for simpler imports)
+│       ├── mui.d.ts       # Module augmentation / MUI type customizations
+│       ├── components/    # Page-level and UI components
+│       │   ├── Layout.tsx             # Shared app layout shell (navbar, containers)
+│       │   ├── Login.tsx              # User login screen
+│       │   ├── Register.tsx           # Basic register form
+│       │   ├── RegisterPage.tsx       # Possibly enhanced or wrapped registration experience
+│       │   ├── Profile.tsx            # User profile editing (name, email, picture)
+│       │   ├── Budgets.tsx            # Budget management UI
+│       │   ├── TransactionForm.tsx    # Form to create/edit transactions
+│       │   ├── TransactionList.tsx    # List / table of transactions
+│       │   ├── Reports.tsx            # Charts / analytics (Chart.js integration)
+│       │   ├── Groups.tsx             # Group expense management UI
+│       │   ├── DashboardWorking.tsx   # (Experimental or WIP dashboard component)
+│       │   ├── AnimatedBackground.tsx # Visual animated emoji background layer
+│       │   ├── GlobalThemeToggle.tsx  # Dark/light theme toggle component
+│       │   └── shared/                # Reusable presentational components
+│       │       ├── AnimatedButton.tsx # Custom styled/animated button
+│       │       └── PageHeading.tsx    # Consistent page title header
+│       ├── context/       # React context providers (global state)
+│       │   ├── AuthContext.tsx        # Handles auth state & actions (login/register/me/logout)
+│       │   ├── NotificationContext.tsx# Toast/alert messaging system
+│       │   └── ThemeContext.tsx       # Theme mode (light/dark) management
+│       ├── services/
+│       │   └── api.ts                 # Axios instance with interceptors (auth token + 401 handling)
+│       ├── types/
+│       │   └── index.ts               # Shared TypeScript type declarations (domain models)
+│       └── node_modules/  # Installed frontend libraries
+│
+├── des.txt                # (Custom file; possibly notes or description)
+└── PROJECT_LAYOUT.txt     # This generated structure & description file
+
+Notes:
+- Duplicate route file `backend/routes/budgets.js` may be legacy or unused (investigate and remove if redundant).
+- Environment variables: backend expects MONGODB_URI, JWT_SECRET, PORT; frontend optionally REACT_APP_API_URL.
+- Build directory is generated; avoid manual edits.
+- Consider adding README.md for onboarding instructions.
+
+End of layout.

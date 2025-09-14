@@ -1,0 +1,171 @@
+Project 5: Personal Budget Tracker
+Project Description
+Introduction:
+The Personal Budget Tracker is a comprehensive financial management tool designed
+to help users track income, expenses, budgets, and spending behavior. The platform
+supports both individual and group-based expense tracking, allowing users to manage
+shared financial activities across different contexts like households, trips, or social
+events. It offers clean interfaces, strong CRUD operations, budget setting, and
+detailed data visualization to encourage better financial decisions.
+Objectives:
+1. Daily Financial Entry Logging:
+• Allow users to add, edit, and delete income and expense entries.
+• Each entry includes fields such as amount, category, date, and optional notes.
+2. Category-Based Budget Setting:
+• Let users define monthly budgets for specific categories like food,
+transport, entertainment, etc.
+• Provide real-time tracking of category spending vs. budget.
+3. Data Visualization:
+• Generate intuitive bar graphs, pie charts, and trend lines to represent
+income vs. expense, category-wise spending, and budget usage.
+4. Financial Summaries & Insights:
+• Show monthly summaries including savings, overspending
+alerts, and percentage breakdowns.
+• Help users develop smarter money habits through spending analysis.
+5. Data Storage and Management:
+• Use a structured and optimized database to store user data.
+• Ensure efficient CRUD operations and data retrieval.
+6. Optional: User Authentication & Syncing:
+• Implement basic login/logout functionality.
+• Optionally support data sync via cloud storage or export/import features
+(CSV, JSON).
+ 7. Group Expense Management:
+● Users can create and manage groups for shared financial activities.
+● Within groups, expenses can be recorded with custom split configurations (equal
+or unequal).
+● The system automatically calculates outstanding balances between members.
+● Users can record settlements to update balances.
+Key Features
+1. Transaction Management:
+• Add/edit/delete transactions.
+• Filter by date range, type (income/expense), and category.
+2. Category-Based Budgeting:
+• Set monthly budgets for each category.
+• View budget progress bars and alerts for overspending.
+3. Dashboard & Visual Reports:
+• Income vs. Expense graph.
+• Monthly trend charts.
+• Category-wise breakdown in pie charts.
+4. Search & Filters:
+• Search transactions by keyword, category, or date.
+• Custom filters for reports and summaries.
+5. Secure Storage:
+• Use local or cloud-based storage with encryption if needed.
+• Backup/export options.
+6. (Optional) User Authentication:
+• Sign-up/Login system for saving personal budgets across sessions.
+ 7.Group Expense Handling:
+● Create groups and add participants.
+● Automatically compute how much each member owes or is owed based on their
+share.
+● Allow users to record payments or settlements to keep balances up to date.
+
+Background / Literature / Resources
+Component  Recommended Tools/Technologies
+Frontend : React.js / Vue.js / HTML-CSS-JS
+Backend : Node.js / Django / Flask
+Database : SQLite / PostgreSQL / MongoDB
+Data Visualization : Chart.js / D3.js / Google Charts
+Authentication (Opt.) :  Firebase Auth / JWT / Session-based
+Hosting (Opt.) : Netlify / Render / Vercel
+Version Control : Git + GitHub
+
+
+Implementation Plan
+Requirement Gathering, Planning & Design
+Objectives:
+• Understand user needs
+• Design user flows and UI
+• Plan project architecture and technology stack
+Tasks:
+• Identify key user personas: e.g., a student, salaried professional
+• List functional requirements: transaction logging, budget setting, graphs, etc.
+• Define non-functional requirements: data privacy, responsiveness, ease of use
+• Choose tech stack (e.g., React + Node.js + MongoDB or SQLite)
+• Create wireframes for:
+• Dashboard
+• Add Transaction
+• Budget Management
+• Reports/Graphs page
+• Design database schema:
+• Users (if auth is used)
+• Transactions (amount, type, category, date, notes)
+• Budgets (category, limit, month)
+• Create ER Diagram and initial class/flow diagrams
+• Setup version control (GitHub repo)
+Deliverables:
+• Software Requirements Specification (SRS)
+• UI wireframes
+• Database schema & ER diagram
+• Technology stack finalized
+
+
+Core Development – CRUD & Budget Management
+Objectives:
+• Implement backend APIs and database connectivity
+• Create frontend forms and pages for transactions and budgets
+• Enable group management and shared expense calculation
+Tasks:
+• Backend:
+• Set up project structure
+• APIs for users, transactions, groups, budgets
+• Shared expense computation logic (based on ratio or equal split)
+• Implement CRUD APIs for transactions and budgets
+• Connect to chosen DB (MongoDB, SQLite, etc.)
+• Frontend:
+• Create Add/Edit/Delete Transaction page
+• Display transactions in a table with filters (category, date)
+• Build form for budget creation/updating
+• Show real-time budget consumption (progress bar)
+• Group creation and member management
+• Display of group balances and dues
+• Connect frontend to backend using API calls (Axios or Fetch)
+• Basic error handling and form validation
+Deliverables:
+• Working backend APIs
+• Frontend pages for transactions and budget management
+• Integration with the database
+• Mid-week code review to ensure module completion
+
+
+Data Visualization & Insights
+Objectives:
+• Enable users to view analytics and financial summaries
+• Visualize expenses with interactive charts
+Tasks:
+Use Chart.js or D3.js to display:
+• Pie chart: Category-wise spending
+• Bar chart: Monthly income vs expenses
+• Line chart: Spending trend over time
+• Summary widgets:
+• Total income & expenses
+• % of budget used per category
+• Current savings
+• Implement filters: monthly, category, type (income/expense)
+• Add transaction search and sort functionality
+• Start implementing optional features (auth, export, reminders)
+Deliverables:
+• Functional and dynamic graphs
+• Summary dashboard
+• Filterable and searchable transaction reports
+
+
+Testing, Deployment & Documentation
+Objectives:
+• Ensure stability, polish the app, and prepare for final presentation
+Tasks:
+• Perform unit testing for backend APIs
+• Conduct integration testing between frontend and backend
+• Fix bugs and resolve UI issues (styling, responsiveness)
+• Deploy on GitHub Pages, Render, Netlify, or local server
+• Write documentation:
+• Technical guide for developers
+• User manual
+• Deployment instructions
+• Prepare final presentation/demo
+• Collect user feedback (optional beta test)
+Deliverables:
+Fully functional deployed app
+• All documentation (README, user guide, diagrams)
+• Final recorded/live demo
+• Presentation slides and Q&A readiness
