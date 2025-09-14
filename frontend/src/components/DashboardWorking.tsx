@@ -47,6 +47,7 @@ import { useAuth } from '../context/AuthContext';
 import GoalsPanel from './GoalsPanel';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import api from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale);
 
@@ -61,6 +62,7 @@ interface Transaction {
 
 const DashboardComponent: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const theme = useTheme();
   const darkMode = theme.palette.mode === 'dark';
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -72,6 +74,15 @@ const DashboardComponent: React.FC = () => {
   const [anomalyExpanded, setAnomalyExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  // Goal dialog state
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
+  const [creatingGoal, setCreatingGoal] = useState(false);
+  const [newGoal, setNewGoal] = useState({
+    name: '',
+    targetAmount: '',
+    deadline: '',
+    notes: ''
+  });
   const [newTransaction, setNewTransaction] = useState({
     description: '',
     amount: '',
@@ -159,6 +170,30 @@ const DashboardComponent: React.FC = () => {
     } catch (error) {
       console.error('Error adding transaction:', error);
       alert('Failed to add transaction. Please try again.');
+    }
+  };
+
+  const handleCreateGoal = async () => {
+    if (!newGoal.name || !newGoal.targetAmount) return;
+    try {
+      setCreatingGoal(true);
+      const payload = {
+        name: newGoal.name,
+        targetAmount: parseFloat(newGoal.targetAmount),
+        deadline: newGoal.deadline || undefined,
+        notes: newGoal.notes || undefined
+      };
+      const res = await api.post('/goals', payload);
+      const created = res.data;
+      // Optimistically update mini list
+      setGoalsMini(prev => [created, ...prev].slice(0,3));
+      setNewGoal({ name:'', targetAmount:'', deadline:'', notes:'' });
+      setGoalDialogOpen(false);
+    } catch (e) {
+      console.error('Failed creating goal', e);
+      alert('Failed to create goal');
+    } finally {
+      setCreatingGoal(false);
     }
   };
 
@@ -755,6 +790,7 @@ const DashboardComponent: React.FC = () => {
                 )}
                 {/* Close styling wrapper Box for recent transactions */}
                 </Box>
+                {/* (Financial Health & Goals relocated below main grid) */}
               </Paper>
             </Slide>
           </Grid>
@@ -951,79 +987,6 @@ const DashboardComponent: React.FC = () => {
               </Slide>
             )}
 
-            {/* Health + Goals Summary Row */}
-            <Grid container spacing={3} sx={{ mt: 1 }}>
-              <Grid item xs={12} md={6}>
-                <Card sx={{
-                  p:2.5,
-                  borderRadius:4,
-                  background: darkMode ? 'linear-gradient(135deg, rgba(15,23,42,0.85), rgba(30,27,75,0.85))' : 'linear-gradient(135deg,#ffffff,#f1f5f9)',
-                  position:'relative',
-                  overflow:'hidden'
-                }}>
-                  <Typography variant="h6" fontWeight={700} sx={{ mb:1, display:'flex', alignItems:'center', gap:1 }}>
-                    🩺 Financial Health
-                  </Typography>
-                  {health ? (
-                    <Box sx={{ display:'flex', alignItems:'center', gap:3 }}>
-                      <Box sx={{ position:'relative', width:120, height:120 }}>
-                        <svg width={120} height={120}>
-                          <circle cx={60} cy={60} r={52} stroke={darkMode? 'rgba(148,163,184,0.2)':'#e2e8f0'} strokeWidth={10} fill="none" />
-                          <circle cx={60} cy={60} r={52} strokeLinecap="round" stroke="url(#gradHealth)" strokeWidth={10} fill="none" strokeDasharray={`${Math.round((health.score)*2*Math.PI*52)} ${Math.round(2*Math.PI*52)}`} transform="rotate(-90 60 60)" style={{ transition:'stroke-dasharray 1s ease'}} />
-                          <defs>
-                            <linearGradient id="gradHealth" x1="0%" y1="0%" x2="100%" y2="0%">
-                              <stop offset="0%" stopColor="#6366f1" />
-                              <stop offset="100%" stopColor={health.score>0.7? '#10b981':'#8b5cf6'} />
-                            </linearGradient>
-                          </defs>
-                          <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize="20" fontWeight="700" fill={darkMode? '#f1f5f9':'#1e293b'}>{Math.round(health.score*100)}</text>
-                        </svg>
-                      </Box>
-                      <Box sx={{ flex:1 }}>
-                        <Typography variant="body2" sx={{ mb:1 }}>
-                          Score reflects savings rate, budget adherence, stability & balance.
-                        </Typography>
-                        {health.recommendations.slice(0,2).map((r,i)=>(
-                          <Chip key={i} label={r} size="small" sx={{ mr:1, mb:1, maxWidth:'100%' }} />
-                        ))}
-                        {health.recommendations.length===0 && (
-                          <Chip label="Looking good – keep it up!" color="success" size="small" />
-                        )}
-                      </Box>
-                    </Box>
-                  ) : (
-                    <Box sx={{ py:3 }}>
-                      {loadingHealth ? <LinearProgress /> : <Button onClick={fetchHealth}>Load Health</Button>}
-                    </Box>
-                  )}
-                </Card>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Card sx={{ p:2.5, borderRadius:4, background: darkMode ? 'linear-gradient(135deg, rgba(30,41,59,0.85), rgba(51,65,85,0.85))' : 'linear-gradient(135deg,#ffffff,#f8fafc)' }}>
-                  <Typography variant="h6" fontWeight={700} sx={{ mb:1, display:'flex', alignItems:'center', gap:1 }}>
-                    🎯 Goals Snapshot
-                  </Typography>
-                  <Box sx={{ display:'flex', flexDirection:'column', gap:1 }}>
-                    {goalsMini.map(g => {
-                      const pct = g.targetAmount ? Math.min(100, (g.currentAmount / g.targetAmount)*100) : 0;
-                      return (
-                        <Box key={g._id} sx={{ display:'flex', alignItems:'center', gap:1 }}>
-                          <Box sx={{ flexGrow:1 }}>
-                            <Typography variant="body2" fontWeight={600}>{g.name}</Typography>
-                            <LinearProgress variant="determinate" value={pct} sx={{ height:6, borderRadius:3, '& .MuiLinearProgress-bar':{ background: pct>=100? 'linear-gradient(90deg,#10b981,#34d399)': 'linear-gradient(90deg,#6366f1,#8b5cf6)'} }} />
-                          </Box>
-                          <Typography variant="caption" sx={{ width:40, textAlign:'right', fontWeight:600 }}>{pct.toFixed(0)}%</Typography>
-                        </Box>
-                      );
-                    })}
-                    {goalsMini.length===0 && (
-                      <Typography variant="body2" sx={{ opacity:0.7 }}>No goals yet – create one!</Typography>
-                    )}
-                    <Button size="small" onClick={fetchGoalsMini} sx={{ alignSelf:'flex-start', mt:0.5 }}>Refresh</Button>
-                  </Box>
-                </Card>
-              </Grid>
-            </Grid>
           </Grid>
         </Grid>
             </Box>
@@ -1247,6 +1210,159 @@ const DashboardComponent: React.FC = () => {
         >
           <AddIcon />
         </Fab>
+        {/* Goal Creation Dialog */}
+        <Dialog open={goalDialogOpen} onClose={() => setGoalDialogOpen(false)} fullWidth maxWidth="sm">
+          <DialogTitle>Create a Goal</DialogTitle>
+          <DialogContent dividers sx={{ pt:2 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  label="Name"
+                  fullWidth
+                  value={newGoal.name}
+                  onChange={(e)=>setNewGoal({...newGoal, name:e.target.value})}
+                  autoFocus
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Target Amount"
+                  type="number"
+                  fullWidth
+                  value={newGoal.targetAmount}
+                  onChange={(e)=>setNewGoal({...newGoal, targetAmount:e.target.value})}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Deadline"
+                  type="date"
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  value={newGoal.deadline}
+                  onChange={(e)=>setNewGoal({...newGoal, deadline:e.target.value})}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Notes"
+                  fullWidth
+                  multiline
+                  minRows={3}
+                  value={newGoal.notes}
+                  onChange={(e)=>setNewGoal({...newGoal, notes:e.target.value})}
+                />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={()=> setGoalDialogOpen(false)}>Cancel</Button>
+            <Button
+              variant="contained"
+              disabled={!newGoal.name || !newGoal.targetAmount || creatingGoal}
+              onClick={handleCreateGoal}
+            >{creatingGoal ? 'Saving...' : 'Create Goal'}</Button>
+          </DialogActions>
+        </Dialog>
+            {/* UML Architecture Link Section */}
+            {/* Stacked Financial Health & Goals Section */}
+            <Box sx={{ mt: 10 }}>
+              <Typography variant="h5" sx={{ fontWeight: 700, mb: 3, background: darkMode ? 'linear-gradient(90deg,#6366f1,#10b981)' : 'linear-gradient(90deg,#1e3a8a,#10b981)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Wellness & Goals</Typography>
+              <Grid container spacing={4}>
+                <Grid item xs={12}>
+                  <Card sx={{ p:3, borderRadius:4, background: darkMode ? 'linear-gradient(135deg,#0f172a,#1e293b)' : 'linear-gradient(135deg,#ffffff,#f1f5f9)', position:'relative', overflow:'hidden' }}>
+                    <Typography variant="h6" fontWeight={700} sx={{ mb:2 }}>🩺 Financial Health</Typography>
+                    {health ? (
+                      <Box sx={{ display:'flex', flexWrap:'wrap', gap:3 }}>
+                        <Box sx={{ position:'relative', width:140, height:140 }}>
+                          <svg width={140} height={140}>
+                            <circle cx={70} cy={70} r={60} stroke={darkMode? 'rgba(148,163,184,0.2)':'#e2e8f0'} strokeWidth={12} fill="none" />
+                            <circle cx={70} cy={70} r={60} strokeLinecap="round" stroke="url(#gradHealthMain)" strokeWidth={12} fill="none" strokeDasharray={`${Math.round((health.score)*2*Math.PI*60)} ${Math.round(2*Math.PI*60)}`} transform="rotate(-90 70 70)" style={{ transition:'stroke-dasharray 1s ease'}} />
+                            <defs>
+                              <linearGradient id="gradHealthMain" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stopColor="#6366f1" />
+                                <stop offset="100%" stopColor={health.score>0.7? '#10b981':'#8b5cf6'} />
+                              </linearGradient>
+                            </defs>
+                            <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize="26" fontWeight="700" fill={darkMode? '#f1f5f9':'#1e293b'}>{Math.round(health.score*100)}</text>
+                          </svg>
+                        </Box>
+                        <Box sx={{ flex:1, minWidth:240 }}>
+                          <Typography variant="body2" sx={{ mb:1 }}>Composite score summarizing savings rate, budget adherence & variance stability.</Typography>
+                          {health.recommendations.slice(0,3).map((r,i)=>(
+                            <Chip key={i} label={r} size="small" sx={{ mr:1, mb:1 }} />
+                          ))}
+                          {health.recommendations.length===0 && <Chip label="Looking good – keep it up!" color="success" size="small" />}
+                          <Button size="small" sx={{ mt:1, textTransform:'none' }} onClick={fetchHealth}>Refresh</Button>
+                        </Box>
+                      </Box>
+                    ) : (
+                      <Box sx={{ py:3 }}>{loadingHealth ? <LinearProgress /> : <Button onClick={fetchHealth}>Load Health</Button>}</Box>
+                    )}
+                  </Card>
+                </Grid>
+                <Grid item xs={12}>
+                  <Card sx={{ p:3, borderRadius:4, background: darkMode ? 'linear-gradient(135deg,#1e293b,#334155)' : 'linear-gradient(135deg,#ffffff,#f8fafc)' }}>
+                    <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'center', mb:2 }}>
+                      <Typography variant="h6" fontWeight={700}>🎯 Goals Snapshot</Typography>
+                      <Button variant="contained" size="small" onClick={() => setGoalDialogOpen(true)} sx={{ textTransform:'none', borderRadius:2 }}>Add Goal</Button>
+                    </Box>
+                    <Box sx={{ display:'flex', flexDirection:'column', gap:1 }}>
+                      {goalsMini.map(g => {
+                        const pct = g.targetAmount ? Math.min(100, (g.currentAmount / g.targetAmount)*100) : 0;
+                        return (
+                          <Box key={g._id} sx={{ display:'flex', alignItems:'center', gap:1 }}>
+                            <Box sx={{ flexGrow:1 }}>
+                              <Typography variant="body2" fontWeight={600}>{g.name}</Typography>
+                              <LinearProgress variant="determinate" value={pct} sx={{ height:6, borderRadius:3, '& .MuiLinearProgress-bar':{ background: pct>=100? 'linear-gradient(90deg,#10b981,#34d399)': 'linear-gradient(90deg,#6366f1,#8b5cf6)'} }} />
+                            </Box>
+                            <Typography variant="caption" sx={{ width:40, textAlign:'right', fontWeight:600 }}>{pct.toFixed(0)}%</Typography>
+                          </Box>
+                        );
+                      })}
+                      {goalsMini.length===0 && <Typography variant="body2" sx={{ opacity:0.7 }}>No goals yet – create one!</Typography>}
+                      <Box sx={{ display:'flex', gap:1, mt:0.5 }}>
+                        <Button size="small" onClick={fetchGoalsMini} sx={{ textTransform:'none' }}>Refresh</Button>
+                        <Button size="small" variant="outlined" onClick={() => navigate('/goals')} sx={{ textTransform:'none' }}>View All</Button>
+                      </Box>
+                    </Box>
+                  </Card>
+                </Grid>
+              </Grid>
+            </Box>
+            <Box sx={{ mt: 6, textAlign: 'center' }}>
+              <Typography variant="h5" sx={{ fontWeight: 700, mb: 1, background: darkMode ? 'linear-gradient(90deg,#6366f1,#a855f7)' : 'linear-gradient(90deg,#1e3a8a,#6366f1)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Explore the Architecture</Typography>
+              <Typography variant="body2" sx={{ opacity: 0.7, mb: 2 }}>Dive into an interactive UML-style view of models, routes, controllers & utilities.</Typography>
+              <Button
+                onClick={() => navigate('/uml')}
+                variant="contained"
+                size="large"
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
+                  px: 4,
+                  py: 1.4,
+                  borderRadius: 3,
+                  background: darkMode
+                    ? 'linear-gradient(135deg,#4338ca,#6366f1,#7c3aed)'
+                    : 'linear-gradient(135deg,#1e3a8a,#6366f1,#3b82f6)',
+                  boxShadow: darkMode ? '0 8px 24px -6px rgba(0,0,0,0.6)' : '0 8px 24px -6px rgba(99,102,241,0.55)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&:before': {
+                    content: '""',
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'linear-gradient(120deg,rgba(255,255,255,0.25),transparent 60%)',
+                    opacity: 0,
+                    transition: 'opacity .6s'
+                  },
+                  '&:hover:before': { opacity: 1 },
+                  '&:hover': { transform: 'translateY(-4px)', boxShadow: darkMode ? '0 12px 32px -8px rgba(0,0,0,0.7)' : '0 12px 32px -8px rgba(99,102,241,0.6)' }
+                }}
+              >View UML Diagram →</Button>
+            </Box>
           </Box>
   </Container>
   </Box>

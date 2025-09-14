@@ -3,7 +3,7 @@ const User = require('../models/User');
 
 const auth = async (req, res, next) => {
   try {
-    // If a previous middleware (e.g., clerkOrJwt) already attached a valid user, trust it.
+  // If a previous middleware already attached a valid user, trust it.
     if (req.user) {
       return next();
     }

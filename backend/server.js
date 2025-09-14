@@ -7,7 +7,7 @@ const authRoutes = require('./routes/auth');
 const transactionRoutes = require('./routes/transactions');
 const budgetRoutes = require('./routes/budget');
 const groupRoutes = require('./routes/groups');
-const clerkOrJwt = require('./middleware/clerkOrJwt');
+const auth = require('./middleware/auth');
 const goalRoutes = require('./routes/goals');
 const insightsRoutes = require('./routes/insights');
 const Transaction = require('./models/Transaction');
@@ -41,8 +41,6 @@ mongoose.connect(mongoUri) // modern mongoose ignores old options
 
 // Environment / feature summary (non-sensitive)
 console.log('[BOOT] Mode Summary:', {
-  clerk: !!process.env.CLERK_SECRET_KEY ? 'enabled' : 'disabled',
-  mailer: (process.env.GMAIL_USER && process.env.GMAIL_PASS) ? 'gmail' : 'log-only',
   jwtSecretFallback: !process.env.JWT_SECRET,
 });
 
@@ -57,12 +55,12 @@ app.get('/healthz', (req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
-// Protected resource routes (hybrid auth)
-app.use('/api/transactions', clerkOrJwt, transactionRoutes);
-app.use('/api/budgets', clerkOrJwt, budgetRoutes);
-app.use('/api/groups', clerkOrJwt, groupRoutes);
-app.use('/api/goals', clerkOrJwt, goalRoutes);
-app.use('/api/insights', clerkOrJwt, insightsRoutes);
+// Protected resource routes (JWT auth)
+app.use('/api/transactions', auth, transactionRoutes);
+app.use('/api/budgets', auth, budgetRoutes);
+app.use('/api/groups', auth, groupRoutes);
+app.use('/api/goals', auth, goalRoutes);
+app.use('/api/insights', auth, insightsRoutes);
 
 const DESIRED_PORT = parseInt(process.env.PORT, 10) || 5000;
 const HOST = process.env.HOST || '0.0.0.0';

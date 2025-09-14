@@ -20,11 +20,7 @@ export interface LoginProps {}
 const Login: React.FC<LoginProps> = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [otpMode, setOtpMode] = useState(false);
-  const [otpRequested, setOtpRequested] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [otpCountdown, setOtpCountdown] = useState(0);
+  // OTP mode removed: simplifying to password-only authentication
   const [error, setError] = useState('');
   const [errorDetails, setErrorDetails] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,64 +40,37 @@ const Login: React.FC<LoginProps> = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  useEffect(()=>{
-    let timer: any;
-    if(otpCountdown>0) {
-      timer = setTimeout(()=> setOtpCountdown(c=> c-1), 1000);
-    }
-    return ()=> timer && clearTimeout(timer);
-  }, [otpCountdown]);
+  // Removed OTP countdown effect (no longer needed)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if(!otpMode){
-      if (!email || !password) {
-        setError('Please fill in all fields');
-        setErrorDetails('Email and password are required to sign in.');
-        return;
-      }
-      if (!email.includes('@')) { setError('Invalid email format'); setErrorDetails('Please enter a valid email address.'); return; }
-      setLoading(true); setError(''); setErrorDetails('');
-      try {
-        await login(email, password);
-        localStorage.setItem('savedEmail', email);
-        navigate('/dashboard');
-      } catch(error:any){
-        console.error('Login error:', error);
-        setError('Sign in failed');
-        setErrorDetails(error?.response?.data?.message || error.message || 'Check your credentials and try again.');
-      } finally { setLoading(false); }
-    } else {
-      // OTP submit
-      if(!email || !otpCode){ setError('Missing code'); setErrorDetails('Enter the 6-digit code sent to your Gmail.'); return; }
-      setLoading(true); setError(''); setErrorDetails('');
-      try {
-        const res = await fetch(`${process.env.REACT_APP_API_URL || ''}/auth/login-otp`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ email, code: otpCode }) });
-        const data = await res.json();
-        if(!res.ok){ throw new Error(data.message || 'OTP login failed'); }
-        // mimic existing login storage pattern
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('savedEmail', email);
-        navigate('/dashboard');
-      } catch(error:any){
-        setError('OTP Sign in failed');
-        setErrorDetails(error.message || 'Invalid or expired code');
-      } finally { setLoading(false); }
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      setErrorDetails('Email and password are required to sign in.');
+      return;
+    }
+    if (!email.includes('@')) {
+      setError('Invalid email format');
+      setErrorDetails('Please enter a valid email address.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setErrorDetails('');
+    try {
+      await login(email, password);
+      localStorage.setItem('savedEmail', email);
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setError('Sign in failed');
+      setErrorDetails(error?.response?.data?.message || error.message || 'Check your credentials and try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const requestOtp = async () => {
-    if(!email) { setError('Enter email first'); setErrorDetails('Provide your Gmail address to receive a code.'); return; }
-    if(!/@gmail\.com$/i.test(email)) { setError('Gmail required'); setErrorDetails('Only Gmail addresses supported for OTP sign in right now.'); return; }
-    setOtpLoading(true); setError(''); setErrorDetails('');
-    try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || ''}/auth/request-otp`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ email }) });
-      const data = await res.json();
-      if(!res.ok) throw new Error(data.message || 'Failed to send code');
-      setOtpRequested(true); setOtpCountdown(60);
-    } catch(err:any){ setError('OTP Request Failed'); setErrorDetails(err.message); }
-    finally { setOtpLoading(false);} }
+  // requestOtp removed (OTP feature deprecated)
 
   return (
     <Box sx={{ 
@@ -242,7 +211,7 @@ const Login: React.FC<LoginProps> = () => {
                   },
                 }}
               />
-              {!otpMode && (
+              {
               <TextField
                 margin="normal"
                 required
@@ -286,18 +255,9 @@ const Login: React.FC<LoginProps> = () => {
                   },
                 }}
               />
-              )}
+              }
 
-              {otpMode && (
-                <Box>
-                  <Button disabled={otpLoading || otpCountdown>0} onClick={requestOtp} variant="outlined" fullWidth sx={{ mt:1, mb:2, borderRadius:3 }}>
-                    {otpLoading? 'Sending...' : (otpCountdown>0? `Resend in ${otpCountdown}s` : (otpRequested? 'Resend Code' : 'Send OTP Code'))}
-                  </Button>
-                  {otpRequested && (
-                    <TextField fullWidth label="6-digit Code" value={otpCode} onChange={e=> setOtpCode(e.target.value.replace(/\D/g,''))} inputProps={{ maxLength:6 }} sx={{ mb:2 }} />
-                  )}
-                </Box>
-              )}
+              {/* OTP UI removed */}
 
               {error && (
                 <Alert
@@ -374,11 +334,9 @@ const Login: React.FC<LoginProps> = () => {
                   }
                 }}
               >
-                {loading ? (otpMode? 'Verifying...' : 'Signing In...') : (otpMode? 'Sign In with OTP' : 'Sign In ✨')}
+                {loading ? 'Signing In...' : 'Sign In ✨'}
               </Button>
-              <Button fullWidth variant="text" onClick={()=> { setOtpMode(m=> !m); setError(''); setErrorDetails(''); }} sx={{ mb:2 }}>
-                {otpMode? 'Use Password Instead' : 'Try OTP (Gmail) Login'}
-              </Button>
+              {/* Toggle button removed (OTP deprecated) */}
             </Box>
             
             <Box sx={{ textAlign: 'center', mt: 3 }}>

@@ -3,11 +3,10 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
-const { sendOtpEmail } = require('../utils/mailer');
 
 const router = express.Router();
 
-// Register (OTP verification required before login)
+// Register (immediate activation, returns JWT)
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -59,22 +58,13 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Create user (unverified initially)
-    const user = new User({ name, email, password, isVerified: false });
+    const user = new User({ name, email, password });
     await user.save();
-
-    // Generate OTP for email verification
-    const code = ('' + Math.floor(100000 + Math.random()*900000));
-    user.otpHash = await bcrypt.hash(code, 10);
-    user.otpExpiresAt = new Date(Date.now() + 10*60*1000); // 10 minutes for initial verify
-    user.lastOtpSentAt = new Date();
-    await user.save();
-    try { await sendOtpEmail(email, code); } catch(mailErr){ console.warn('[REGISTER][OTP EMAIL] send failed:', mailErr.message); }
-
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'fallback-secret', { expiresIn: '7d' });
     res.status(201).json({
-      message: 'Registration successful. Please verify the OTP sent to your email to activate your account.',
-      needsVerification: true,
-      userId: user._id
+      message: 'Registration successful',
+      token,
+      user: { id: user._id, name: user.name, email: user.email, profilePicture: user.profilePicture || '' }
     });
   } catch (error) {
     console.error('[REGISTER] error:', error);
@@ -108,32 +98,29 @@ router.post('/register', async (req, res) => {
 
 // Login
 router.post('/login', async (req, res) => {
+  const start = Date.now();
   try {
-    const { email, password } = req.body;
-
-    // Check if user exists
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Missing email or password', details: { email: !email, password: !password } });
+    }
     const user = await User.findOne({ email });
     if (!user) {
+      console.warn('[LOGIN] user not found', { email });
       return res.status(400).json({ message: 'Invalid credentials' });
     }
-
-    // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      console.warn('[LOGIN] password mismatch', { email });
       return res.status(400).json({ message: 'Invalid credentials' });
     }
-
-    if (!user.isVerified) {
-      return res.status(423).json({ message: 'Account not verified. Please complete OTP verification.' });
-    }
-
-    // Generate token
     const token = jwt.sign(
       { id: user._id },
       process.env.JWT_SECRET || 'fallback-secret',
       { expiresIn: '7d' }
     );
-
+    const duration = Date.now() - start;
+    console.log('[LOGIN] success', { email, ms: duration });
     res.json({
       token,
       user: {
@@ -144,6 +131,7 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('[LOGIN] error', { error: error.message });
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -272,109 +260,3 @@ router.get('/profiles', async (req, res) => {
 
 module.exports = router;
 
-// OTP Endpoints (appended for clarity)
-router.post('/request-otp', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if(!email) return res.status(400).json({ message: 'Email required' });
-    if(!/@gmail\.com$/i.test(email)) return res.status(400).json({ message: 'Only Gmail addresses supported for OTP login currently' });
-    let user = await User.findOne({ email }).select('+otpHash +otpExpiresAt +lastOtpSentAt');
-    if(!user) {
-      // Auto-provision lightweight account with random password (can later set real password)
-      user = new User({ name: email.split('@')[0], email, password: Math.random().toString(36).slice(2,10) });
-    }
-    const now = new Date();
-    if(user.lastOtpSentAt && (now - user.lastOtpSentAt) < 60*1000) {
-      const secs = 60 - Math.floor((now - user.lastOtpSentAt)/1000);
-      return res.status(429).json({ message: `OTP already sent. Try again in ${secs}s` });
-    }
-    const code = ('' + Math.floor(100000 + Math.random()*900000));
-    user.otpHash = await bcrypt.hash(code, 10);
-    user.otpExpiresAt = new Date(Date.now() + 5*60*1000); // 5 minutes
-    user.lastOtpSentAt = now;
-    await user.save();
-    await sendOtpEmail(email, code);
-    return res.json({ message: 'OTP sent' });
-  } catch(err){
-    console.error('[REQUEST OTP] error', err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-router.post('/login-otp', async (req, res) => {
-  try {
-    const { email, code } = req.body;
-    if(!email || !code) return res.status(400).json({ message: 'Email and code required' });
-    const user = await User.findOne({ email }).select('+otpHash +otpExpiresAt');
-    if(!user || !user.otpHash || !user.otpExpiresAt) return res.status(400).json({ message: 'Invalid or expired code' });
-    if(user.otpExpiresAt < new Date()) return res.status(400).json({ message: 'Code expired' });
-    const ok = await bcrypt.compare(code, user.otpHash);
-    if(!ok) return res.status(400).json({ message: 'Invalid or expired code' });
-    // Invalidate OTP after use
-    user.otpHash = undefined; user.otpExpiresAt = undefined; await user.save();
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'fallback-secret', { expiresIn: '7d' });
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, profilePicture: user.profilePicture || '' } });
-  } catch(err){
-    console.error('[LOGIN OTP] error', err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Verify registration OTP
-router.post('/verify-otp', async (req, res) => {
-  try {
-    const { userId, code } = req.body;
-    if(!userId || !code) return res.status(400).json({ message: 'userId and code required' });
-    const user = await User.findById(userId).select('+otpHash +otpExpiresAt +otpAttempts');
-    if(!user) return res.status(404).json({ message: 'User not found' });
-    if(user.isVerified) return res.json({ message: 'Already verified', verified: true });
-    if(!user.otpHash || !user.otpExpiresAt) return res.status(400).json({ message: 'No active OTP. Please request a new one.' });
-    if(user.otpExpiresAt < new Date()) return res.status(400).json({ message: 'OTP expired. Request a new code.' });
-    if(user.otpAttempts >= 5) return res.status(429).json({ message: 'Too many attempts. Request a new code.' });
-
-    const ok = await bcrypt.compare(code, user.otpHash);
-    user.otpAttempts += 1;
-    if(!ok) {
-      await user.save();
-      return res.status(400).json({ message: 'Invalid code' });
-    }
-    // Success
-    user.isVerified = true;
-    user.otpHash = undefined;
-    user.otpExpiresAt = undefined;
-    user.otpAttempts = 0;
-    await user.save();
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'fallback-secret', { expiresIn: '7d' });
-    return res.json({ message: 'Account verified', verified: true, token, user: { id: user._id, name: user.name, email: user.email, profilePicture: user.profilePicture || '' } });
-  } catch(err) {
-    console.error('[VERIFY OTP] error', err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Resend registration OTP
-router.post('/resend-otp', async (req, res) => {
-  try {
-    const { userId } = req.body;
-    if(!userId) return res.status(400).json({ message: 'userId required' });
-    const user = await User.findById(userId).select('+otpHash +otpExpiresAt');
-    if(!user) return res.status(404).json({ message: 'User not found' });
-    if(user.isVerified) return res.status(400).json({ message: 'Already verified' });
-    const now = new Date();
-    if(user.lastOtpSentAt && (now - user.lastOtpSentAt) < 60*1000) {
-      const secs = 60 - Math.floor((now - user.lastOtpSentAt)/1000);
-      return res.status(429).json({ message: `Please wait ${secs}s before requesting another code.` });
-    }
-    const code = ('' + Math.floor(100000 + Math.random()*900000));
-    user.otpHash = await bcrypt.hash(code, 10);
-    user.otpExpiresAt = new Date(Date.now() + 10*60*1000);
-    user.lastOtpSentAt = now;
-    user.otpAttempts = 0;
-    await user.save();
-    try { await sendOtpEmail(user.email, code); } catch(mailErr){ console.warn('[RESEND OTP] email failed:', mailErr.message); }
-    return res.json({ message: 'New OTP sent' });
-  } catch(err) {
-    console.error('[RESEND OTP] error', err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});

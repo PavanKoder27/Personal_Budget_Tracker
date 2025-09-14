@@ -6,7 +6,6 @@ import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
 import Layout from './components/Layout';
 import Login from './components/Login';
-import { SignIn, SignedIn, SignedOut, useAuth as useClerkAuth, UserButton } from '@clerk/clerk-react';
 import RegisterPage from './components/RegisterPage';
 import DashboardWorking from './components/DashboardWorking';
 import TransactionList from './components/TransactionList';
@@ -16,6 +15,7 @@ import Reports from './components/Reports';
 import Profile from './components/Profile';
 import GlobalThemeToggle from './components/GlobalThemeToggle';
 import { useAuth } from './context/AuthContext';
+import UMLDiagram from './components/UMLDiagram';
 
 // Layout that requires authentication
 const ProtectedLayout: React.FC = () => {
@@ -37,22 +37,6 @@ const PublicOnlyRoute: React.FC<{ children: React.ReactElement }> = ({ children 
   return children;
 };
 
-// Bridge component: if Clerk available and user signed in via Clerk but internal AuthContext not yet
-// updated, we still allow access because backend hybrid middleware will validate Clerk token.
-const ClerkBridge: React.FC<{ children: React.ReactElement }> = ({ children }) => {
-  let clerkLoaded = false; let isSignedIn = false; let getToken: (()=>Promise<string | null>) | undefined;
-  try {
-    const ca = useClerkAuth();
-  clerkLoaded = !!ca.isLoaded; isSignedIn = !!ca.isSignedIn; getToken = ca.getToken;
-  } catch { /* ClerkProvider may not be present */ }
-
-  React.useEffect(() => {
-    if (clerkLoaded && isSignedIn && getToken) {
-      getToken().then(t => { if (t) localStorage.setItem('clerkToken', t); });
-    }
-  }, [clerkLoaded, isSignedIn, getToken]);
-  return children;
-};
 
 const App: React.FC = () => {
   return (
@@ -62,7 +46,6 @@ const App: React.FC = () => {
         <NotificationProvider>
           <Router>
             <Routes>
-              <Route path="/clerk-sign-in" element={<SignIn routing="hash" />} />
               <Route
                 path="/login"
                 element={
@@ -80,7 +63,7 @@ const App: React.FC = () => {
                 }
               />
               {/* Protected application area */}
-              <Route path="/" element={<ClerkBridge><ProtectedLayout /></ClerkBridge>}> {/* All below require auth */}
+              <Route path="/" element={<ProtectedLayout />}> {/* All below require auth */}
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardWorking />} />
                 <Route path="transactions" element={<TransactionList />} />
@@ -88,6 +71,7 @@ const App: React.FC = () => {
                 <Route path="reports" element={<Reports />} />
                 <Route path="groups" element={<Groups />} />
                 <Route path="profile" element={<Profile />} />
+                <Route path="uml" element={<UMLDiagram />} />
               </Route>
               {/* Fallback: anything unknown -> login */}
               <Route path="*" element={<Navigate to="/login" replace />} />

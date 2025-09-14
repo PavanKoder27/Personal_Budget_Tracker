@@ -18,34 +18,6 @@ const userSchema = new mongoose.Schema({
     required: true,
     minlength: 6
   },
-  clerkId: {
-    type: String,
-    index: true,
-    unique: true,
-    sparse: true // allow null for legacy users without Clerk
-  },
-  otpHash: {
-    type: String,
-    select: false
-  },
-  otpExpiresAt: {
-    type: Date,
-    select: false
-  },
-  lastOtpSentAt: {
-    type: Date,
-    select: false
-  },
-  isVerified: {
-    type: Boolean,
-    default: false,
-    index: true
-  },
-  otpAttempts: {
-    type: Number,
-    default: 0,
-    select: false
-  },
   profilePicture: {
     type: String,
     default: ''

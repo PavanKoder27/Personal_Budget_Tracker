@@ -50,6 +50,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { label: 'Reports', path: '/reports' },
     { label: 'Groups', path: '/groups' },
     { label: 'Profile', path: '/profile' },
+    { label: 'UML Diagram', path: '/uml' },
   ];
 
   const [mobileOpen, setMobileOpen] = React.useState(false);

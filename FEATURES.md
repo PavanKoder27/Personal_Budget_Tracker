@@ -2,7 +2,7 @@
 
 This document supplements the existing `des.txt` (kept unchanged) and explains the newly added functionality and how to use it in both the UI and via API.
 
-> NOTE: All new backend endpoints are under the `/api` prefix and are protected by the hybrid Clerk/JWT middleware (you must be authenticated with either legacy JWT token `Authorization: Bearer <token>` or a valid Clerk session header).
+> NOTE: All new backend endpoints are under the `/api` prefix and are protected by JWT auth middleware (`Authorization: Bearer <token>`).
 
 ## 1. Recurring Transactions (Template Based)
 Create a **template transaction** that generates future concrete transactions automatically.
@@ -125,12 +125,11 @@ Guides new users through first actions: first transaction, budget, goal, group, 
 ### UI (Planned)
 Can integrate as progress bar or chips (foundation endpoint available).
 
-## 7. Hybrid Authentication (Clerk + Legacy JWT)
-Protected routes accept either a valid Clerk session (token stored in `clerkToken`) or classic JWT token. Middleware short-circuits if `req.user` is already populated.
-
-### Headers Priority
-1. Clerk (if present) -> user ensured/created (with `clerkId` field).
-2. Fallback JWT (Authorization header).
+## 7. Authentication (Password + JWT)
+Protected routes require a valid JWT in `Authorization: Bearer <token>`. Registration immediately returns a JWT; there is no OTP or external provider flow. Endpoints:
+`POST /api/auth/register` -> `{ token, user }`
+`POST /api/auth/login` -> `{ token, user }`
+`GET /api/auth/me` -> `{ user }`
 
 ## 8. Data Model Extensions (Summary)
 | Model | Additions | Purpose |
@@ -138,7 +137,7 @@ Protected routes accept either a valid Clerk session (token stored in `clerkToke
 | Transaction | `recurrence`, `isTemplate`, `generatedFrom`, `anomaly` | Scheduling & anomaly tagging |
 | Goal | New model | Savings targets |
 | Stats | New model per (user, category, type) | Streaming mean/variance |
-| User | `clerkId` | Hybrid identity mapping |
+| User | Standard fields (name, email, password hash, profilePicture?) | Core JWT identity |
 
 ## 9. Scheduled Recurrence Engine
 A simple `setInterval` (1 min) scans for due templates by `recurrence.nextRunAt <= now`, creates a concrete transaction, advances `nextRunAt`, decrements `occurrencesLeft`, and deactivates when exhausted or past `endDate`.

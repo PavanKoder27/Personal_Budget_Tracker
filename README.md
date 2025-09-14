@@ -1,13 +1,13 @@
 # Budget Tracker (Advanced Edition)
 
-A full‑stack personal & group finance platform featuring hybrid authentication (Clerk + JWT + email OTP verification), recurring transaction engine, savings goals, financial health analytics, anomaly detection, and group settlement suggestions. Designed for extensibility, resilience, and a polished animated UI.
+A full‑stack personal & group finance platform featuring password + JWT authentication, recurring transaction engine, savings goals, financial health analytics, anomaly detection, and group settlement suggestions. Designed for extensibility, resilience, and a polished animated UI.
 
 ---
 ## Table of Contents
 1. Core Value Proposition
 2. High-Level Architecture
 3. Tech Stack
-4. Authentication Model (Hybrid + OTP)
+4. Authentication Model (Password + JWT)
 5. Data Models
 6. Key Backend Modules & Algorithms
 7. API Overview
@@ -26,63 +26,61 @@ A full‑stack personal & group finance platform featuring hybrid authentication
 20. Deployment Considerations
 21. Roadmap / Future Enhancements
 22. Troubleshooting Guide
-23. License / Notes
+23. Documentation Suite
+24. License / Notes
 
 ---
 ## 1. Core Value Proposition
-Traditional budget apps track numbers; this platform adds proactive intelligence (health score, anomaly surfacing), automation (recurring templates), collaborative settling for groups, and motivational goal progress—all wrapped in a hybrid auth system allowing gradual migration to a managed identity provider.
+Traditional budget apps track numbers; this platform adds proactive intelligence (health score, anomaly surfacing), automation (recurring templates), collaborative settling for groups, and motivational goal progress—secured with a simple password + JWT authentication model (no external identity provider, no OTP flow).
 
 ---
 ## 2. High-Level Architecture
 ```
 frontend/ (React + TS + MUI)
-  -> Auth context (JWT or Clerk)
+  -> Auth context (password + JWT)
   -> Animated dashboard widgets
 backend/ (Node.js Express + MongoDB)
   -> REST API under /api
-  -> Hybrid auth middleware (clerkOrJwt)
+  -> Auth middleware (auth)
   -> Recurrence materializer (interval scheduler)
   -> Streaming anomaly stats (Stats collection)
   -> Insights endpoints (health, checklist)
 MongoDB (Mongoose schemas)
 ```
 Runtime flow:
-1. Client authenticates (JWT login, Clerk, or OTP→JWT).
-2. Protected requests pass through `clerkOrJwt` middleware → `req.user` hydrated.
+1. Client authenticates (password login → JWT).
+2. Protected requests pass through `auth` middleware → `req.user` hydrated.
 3. Business logic routes perform validation, persistence, analytics updates.
 4. Background loop materializes recurring templates.
 5. Frontend polls/refetches anomalies, health, goals for real‑time feel.
 
 ---
 ## 3. Tech Stack
-- Backend: Node.js, Express 5, Mongoose 8, JWT, Clerk SDK, Nodemailer
+- Backend: Node.js, Express 5, Mongoose 8, JWT
 - Frontend: React 18, TypeScript, MUI 5, React Router, custom animated components
 - Algorithms: Welford online variance, greedy net settlement, composite scoring
 - Tooling: Nodemon (dev), Dotenv, ES features (no transpile backend)
 
 ---
-## 4. Authentication Model (Hybrid + OTP)
-Three complementary layers:
-- Clerk (managed identity). If `CLERK_SECRET_KEY` set, tokens verified first.
-- Legacy JWT (fallback) for existing users and OTP-issued sessions.
-- Email OTP (registration + optional login) — generates hashed code, time‑boxed validity, attempt limits.
+## 4. Authentication Model (Password + JWT)
+Single layer:
+- Users register with name, email, password.
+- Successful registration immediately returns a JWT.
+- Subsequent logins return a new JWT (7d expiry by default).
 
-Middleware contract (`clerkOrJwt`):
-- Input: `Authorization: Bearer <token>` (either Clerk or legacy JWT)
-- Output: `req.user` (Mongoose User doc), `req.authSource` in {clerk|jwt}
-- Behavior: Clerk verification attempt → fallback to JWT. If both fail: 401.
+Middleware contract (`auth`):
+- Input: `Authorization: Bearer <JWT>`
+- Output: `req.user` (Mongoose User doc)
+- Behavior: Verifies JWT and attaches user or returns 401.
 
-Registration + OTP verify flow:
-1. POST `/api/auth/register` creates unverified user + sends OTP (6 digits, 10 min expiry).
-2. User submits `/api/auth/verify-otp` with `{ userId, code }`.
-3. On success: `isVerified=true`, JWT returned.
-4. Login blocks (`423 Locked`) until verified.
-
-Resend guard: 60s throttle; attempt guard: 5 invalid attempts → require resend.
+Security notes:
+- Passwords hashed with bcrypt (12 rounds).
+- JWT secret must be overridden in production (env: `JWT_SECRET`).
+- Consider adding rate limiting & account lockout for brute force protection.
 
 ---
 ## 5. Data Models (Summarized)
-User: name, email(unique), password(hash), clerkId(optional), otpHash(+expires, attempts), isVerified, profilePicture.
+User: name, email(unique), password(hash), profilePicture.
 Transaction: user, type, amount, category, description, date, recurrence subdoc, template flags, anomaly subdoc.
 Goal: user, name(unique per user), targetAmount, currentAmount, category, deadline, notes.
 Stats: rolling mean/variance per (user, category, type).
@@ -90,7 +88,6 @@ Group: members, expenses (not fully expanded here).
 
 ---
 ## 6. Key Backend Modules & Algorithms
-- `middleware/clerkOrJwt.js`: Hybrid chain; opportunistic Clerk linking by email.
 - `routes/transactions.js`: Inserts update Stats via Welford algorithm; anomalies flagged when amount > mean + 2σ + min sample threshold.
 - `routes/goals.js`: Standard CRUD with unique composite index.
 - `routes/insights.js`: Health & onboarding checklist aggregation queries.
@@ -100,12 +97,8 @@ Group: members, expenses (not fully expanded here).
 ---
 ## 7. API Overview (Selected)
 Auth:
-- POST /api/auth/register → { needsVerification, userId }
-- POST /api/auth/verify-otp → { token, user }
-- POST /api/auth/resend-otp
-- POST /api/auth/login → JWT (if verified)
-- POST /api/auth/request-otp → email login code
-- POST /api/auth/login-otp → JWT (one-time code path)
+- POST /api/auth/register → { token, user }
+- POST /api/auth/login → { token, user }
 - GET  /api/auth/me
 
 Transactions / Anomalies:
@@ -124,12 +117,12 @@ Groups:
 
 Budgets: (Existing legacy endpoints under /api/budgets)
 
-All protected (except register/login/otp endpoints) via `clerkOrJwt`.
+All protected (except register/login) via `auth`.
 
 ---
 ## 8. Frontend Architecture & UI Patterns
 Context Providers:
-- AuthContext: Manages token state (JWT or Clerk) + user profile.
+- AuthContext: Manages token state (JWT) + user profile.
 - ThemeContext: Light/dark & dynamic toggling.
 - NotificationContext: Snackbars/toasts.
 
@@ -214,24 +207,29 @@ npm run dev
 npm start
 ```
 
+Production build (frontend):
+```
+cd frontend
+npm run build
+```
+The `frontend/build` output is intentionally git‑ignored; produce it during deployment.
+
 ---
 ## 15. Environment Variables
 Backend `.env` (example):
 ```
 MONGODB_URI=mongodb://localhost:27017/budgettrackr
 JWT_SECRET=super-secret-change
-CLERK_SECRET_KEY=sk_test_...
-GMAIL_USER=yourgmail@gmail.com
-GMAIL_PASS=app-password
 PORT=5000
+NODE_ENV=development
 ```
 
-Frontend may require Clerk publishable key if Clerk UI widgets introduced later.
+// (All third‑party identity provider code removed – only internal password + JWT auth remains.)
 
 ---
 ## 16. Running & Testing
 Health Check: `GET /health` after backend start (self-check also logs).
-Manual API Testing: Use curl or Postman with JWT or Clerk token.
+Manual API Testing: Use curl or Postman with JWT token.
 Recurring Engine: Set a template `nextRunAt` = past timestamp to observe quick materialization.
 Anomaly: Enter 6+ similar expenses, then a large outlier.
 
@@ -245,10 +243,9 @@ Anomaly: Enter 6+ similar expenses, then a large outlier.
 ---
 ## 18. Security Considerations
 - Passwords hashed (bcrypt 12 rounds).
-- OTP codes never stored in plain text (bcrypt hash + expiration + attempt counter).
-- Clerk token verification only when secret present (feature toggle safe).
+- Passwords never stored in plain text (bcrypt hash).
 - JWT fallback secret required; fallback-string allowed only in dev.
-- Email resend throttling + attempt limit reduce brute force window.
+- (Recommended) add rate limiting & account lockout to mitigate brute force.
 - Input validation at registration / profile update.
 
 ---
@@ -260,7 +257,6 @@ Anomaly: Enter 6+ similar expenses, then a large outlier.
 
 ---
 ## 20. Deployment Considerations
-- Provide real SMTP provider in production (avoid Gmail limits).
 - Replace interval scheduler with dedicated worker or cron in container/orchestrator.
 - Enforce HTTPS + secure cookie (if migrating to cookie-based auth later).
 - Centralized logging & metrics (e.g., pino + Prometheus exporter) recommended for scale.
@@ -274,17 +270,13 @@ Anomaly: Enter 6+ similar expenses, then a large outlier.
 - Export / import data (CSV, JSON).
 - Budget variance predictive alerts.
 - WebSockets or SSE for live anomaly pushes.
-- Multi-factor across Clerk + internal OTP fallback.
+  (Optional enhancement: add TOTP or WebAuthn second factor / MFA.)
 
 ---
 ## 22. Troubleshooting Guide
 Issue: Server exits with code 1
 - Check MongoDB reachable; ensure `MONGODB_URI` correct.
 - Verify no duplicate port usage; fallback logic attempts alternate.
-
-Issue: OTP emails not received
-- Confirm `GMAIL_USER/PASS` or switch to a production SMTP.
-- Check logs for `[MAILER][DRYRUN]` (means missing credentials).
 
 Issue: Anomalies not appearing
 - Ensure at least 6 historical samples in the category.
@@ -294,11 +286,21 @@ Issue: Recurring not materializing
 - Verify `isTemplate=true` and `recurrence.active=true`.
 - Ensure `nextRunAt <= now`.
 
-Issue: Login blocked (423)
-- Complete `/api/auth/verify-otp` for the user.
-
 ---
-## 23. License / Notes
+## 23. Documentation Suite
+Primary documentation lives under `docs/`.
+
+| Document | Purpose |
+|----------|---------|
+| [`docs/SRS.md`](docs/SRS.md) | Formal Software Requirements Specification (functional & non-functional) |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System, component, data, and sequence diagrams (Mermaid) |
+| [`docs/TECHNICAL_GUIDE.md`](docs/TECHNICAL_GUIDE.md) | Developer-centric setup, conventions, extension notes |
+| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | End-user onboarding & feature walkthrough |
+| [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) | Endpoint contracts, example requests & responses |
+
+Update cadence: bump Version headings in each doc on material architectural or contract change. Keep README sections concise—defer deep dives to the above.
+
+## 24. License / Notes
 Internal project / educational reference. Replace placeholder decisions (interval scheduler, Gmail SMTP) before production use.
 
 ---
