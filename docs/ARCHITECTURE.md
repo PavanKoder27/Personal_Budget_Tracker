@@ -10,24 +10,23 @@ The Budget Tracker is a classic SPA + REST API stack:
 flowchart LR
   subgraph Client[Browser SPA]
     UI[React Components]
-    Ctx[Contexts (Auth/Theme/Notification)]
+    Ctx[Contexts: Auth / Theme / Notifications]
     APIService[Axios Service]
   end
 
   subgraph Server[Node.js Express]
-    Routes[/Routes: auth, transactions, goals, groups, budgets, insights/]
-    Middleware[Auth Middleware]
-    Scheduler[Recurrence Interval]
-    Anomaly[Stats / Anomaly Engine]
+    Routes[Routes: auth, tx, goals, groups, budgets, insights]
+    MW[Auth Middleware]
+    Scheduler[Recurrence Scheduler]
+    Anomaly[Anomaly / Stats Engine]
   end
 
   DB[(MongoDB)]
 
   UI --> APIService --> Routes
-  Routes --> Middleware --> DB
+  Routes --> MW --> DB
   Routes --> Anomaly --> DB
   Scheduler --> Routes
-  Routes --> DB
 ```
 
 ## 2. Component Structure (Frontend)

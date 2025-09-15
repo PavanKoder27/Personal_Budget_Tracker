@@ -1,7 +1,39 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+// Simple in-memory rate limiter (auth endpoints) to avoid brute force.
+// For production scale, replace with Redis-based limiter.
+const rateWindows = new Map(); // key=ip, value { count, reset }
+function rateLimit({ windowMs=15*60*1000, max=100 }={}){
+  return (req,res,next)=>{
+    const now = Date.now();
+    let rec = rateWindows.get(req.ip);
+    if(!rec || rec.reset < now){
+      rec = { count:0, reset: now + windowMs };
+      rateWindows.set(req.ip, rec);
+    }
+    rec.count++;
+    if(rec.count > max){
+      const retrySec = Math.ceil((rec.reset - now)/1000);
+      res.set('Retry-After', retrySec.toString());
+      return res.status(429).json({ message:'Too many requests', retryAfterSeconds: retrySec });
+    }
+    next();
+  };
+}
 require('dotenv').config();
+// Early environment validation (non-fatal outside production)
+try {
+  const { validateEnv } = require('./utils/envCheck');
+  const envResult = validateEnv();
+  console.log('[BOOT] Env validation summary:', envResult.report);
+  if (!envResult.ok) {
+    console.error('[BOOT] Exiting due to failed env validation in production');
+    process.exit(1);
+  }
+} catch (e) {
+  console.warn('[BOOT] Env validation skipped:', e.message);
+}
 
 const authRoutes = require('./routes/auth');
 const transactionRoutes = require('./routes/transactions');
@@ -14,8 +46,25 @@ const Transaction = require('./models/Transaction');
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// CORS (restrict if CORS_ORIGINS set, else allow all for dev)
+const rawCors = (process.env.CORS_ORIGINS || '').split(',').map(s=>s.trim()).filter(Boolean);
+const allowedOrigins = new Set(rawCors);
+app.use(cors({
+  origin: (origin, cb) => {
+    if(!origin) return cb(null, true); // non-browser or same-origin
+    if(allowedOrigins.size === 0 || allowedOrigins.has(origin)) return cb(null, true);
+    return cb(new Error('CORS blocked'));
+  },
+  credentials: true
+}));
+if(allowedOrigins.size){
+  console.log('[BOOT] CORS restricted to:', [...allowedOrigins]);
+} else {
+  console.warn('[BOOT] CORS unrestricted (no CORS_ORIGINS set)');
+}
+
+// Apply rate limiter only to auth endpoints
+app.use('/api/auth', rateLimit({ windowMs: 15*60*1000, max: 100 }));
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
@@ -51,6 +100,12 @@ app.get('/health', (req, res) => {
 // Alternate health (sometimes front-end or proxies use /healthz)
 app.get('/healthz', (req, res) => {
   res.json({ status: 'ok', tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
+});
+// Database-specific health
+app.get('/health/db', async (req,res)=>{
+  const state = mongoose.connection.readyState; // 1 connected
+  const states = { 0:'disconnected', 1:'connected', 2:'connecting', 3:'disconnecting' };
+  res.json({ dbState: states[state] || 'unknown', code: state });
 });
 
 // Routes
@@ -93,6 +148,20 @@ function startServer(port, attemptedFallback=false){
     }
     console.error('[SERVER] Error:', error);
   });
+  // Graceful shutdown handler
+  const shutdown = async (sig) => {
+    try {
+      console.log(`[SHUTDOWN] Signal ${sig} received. Closing server...`);
+      srv.close(()=> console.log('[SHUTDOWN] HTTP server closed'));
+      await mongoose.connection.close();
+      console.log('[SHUTDOWN] Mongo connection closed');
+      process.exit(0);
+    } catch (e) {
+      console.error('[SHUTDOWN] Error during shutdown', e);
+      process.exit(1);
+    }
+  };
+  ['SIGINT','SIGTERM'].forEach(sig => process.once(sig, () => shutdown(sig)) );
 }
 
 startServer(DESIRED_PORT);

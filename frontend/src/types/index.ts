@@ -131,11 +131,6 @@ export interface Goal {
   updatedAt?: string;
 }
 
-// Ambient module declarations (in case TS can't resolve dayjs types)
-// Remove if proper types get picked up automatically.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-declare module 'dayjs';
-
 // Anomaly transaction lightweight type
 export interface AnomalyTransaction {
   _id: string;
