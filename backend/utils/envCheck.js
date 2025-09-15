@@ -18,7 +18,6 @@ function validateEnv() {
   const checks = [
     requireVar('MONGODB_URI'),
     requireVar('JWT_SECRET', { minLength: 24 }),
-    optionalVar('CLERK_SECRET_KEY'),
     optionalVar('GMAIL_USER'),
     optionalVar('GMAIL_PASS')
   ];

@@ -73,7 +73,7 @@ api.interceptors.request.use(async (config: any) => {
   if (!healthCache[activeBase]) {
     ensureActiveBase(); // fire and forget; next request will benefit
   }
-  // Pure JWT token (Clerk & OTP removed)
+  // Pure JWT token auth
   const token = localStorage.getItem('token');
   if (token) {
     config.headers = { ...(config.headers || {}), Authorization: `Bearer ${token}` };

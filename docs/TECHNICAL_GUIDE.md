@@ -52,7 +52,7 @@ Frontend runs on 3000; API proxied via explicit env URL.
 |------|-------|
 | `backend/models` | Mongoose schemas, each independent & lean |
 | `backend/routes` | Thin Express routers calling model operations + domain logic |
-| `backend/middleware` | Auth layering + composite JWT/clerk placeholder removed |
+| `backend/middleware` | Auth layering (JWT only) |
 | `backend/utils` | Cross-cutting helpers (mailer removed post-OTP) |
 | `frontend/src/components` | Page-level & reusable UI primitives |
 | `frontend/src/context` | React contexts (auth, notifications, theming) |
@@ -158,7 +158,7 @@ Adopt incremental approach: start with auth & transactions core flows.
 - Configure environment via process env; do not bake secrets into frontend.
 
 ## 20. Migration Log (Auth Simplification)
-- Removed Clerk & OTP (email, code fields, mailer usage).
+- Legacy third-party + OTP paths removed.
 - JWT only; simplified login/registration; docs & features updated.
 
 ---

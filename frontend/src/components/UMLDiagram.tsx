@@ -147,8 +147,7 @@ const UMLDiagram: React.FC = () => {
   ];
 
   const middleware = [
-    { name: 'authMiddleware', details: ['validates JWT', 'attaches req.user'] },
-    { name: 'clerkOrJwt (removed)', details: ['historical - replaced by JWT only'] },
+    { name: 'authMiddleware', details: ['validates JWT', 'attaches req.user'] }
   ];
 
   const utilities = [
