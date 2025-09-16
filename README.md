@@ -7,6 +7,7 @@
   <img src="https://img.shields.io/badge/Auth-JWT-green" />
   <img src="https://img.shields.io/badge/License-Internal-lightgrey" />
 </p>
+<img width="1919" height="894" alt="image" src="https://github.com/user-attachments/assets/20c7e345-da2b-4235-815e-421c18b2bd75" />
 
 ---
 ## ✨ Highlights
