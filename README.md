@@ -93,10 +93,12 @@ Serve `frontend/build` via static host / CDN; point it at backend API domain (co
 | Anomaly Detection | Welford mean/variance + threshold `> mean + 2σ` (n>5) | Surfaces unusual spending |
 | Health Score | Weighted normalized components | Actionable personal finance pulse |
 | Group Settlement | Greedy pairing of net positive/negative balances | Minimal settlement transfers |
+<img width="1918" height="893" alt="image" src="https://github.com/user-attachments/assets/98b0c78c-0365-4c77-97f3-d70614e91bc3" />
 
 ---
 ## 📦 Domain Models (Simplified)
 `User, Transaction (recurrence + anomaly), Goal, Budget, Group, Stats` — full ER diagram in docs.
+<img width="1918" height="887" alt="image" src="https://github.com/user-attachments/assets/f5fd1839-493c-44c3-992b-ab3d34beb8bd" />
 
 ---
 ## 🛣️ Roadmap (Excerpt)
@@ -106,6 +108,7 @@ Serve `frontend/build` via static host / CDN; point it at backend API domain (co
 - 🔜 Settlement execution persistence
 - 🔜 Real‑time (WebSocket/SSE) anomaly pushes
 - 🔜 Export / import data
+<img width="1917" height="886" alt="image" src="https://github.com/user-attachments/assets/4c798207-b09b-41a2-adcc-8d25e4d11f62" />
 
 Full backlog: see inline comments + [`FEATURES.md`](FEATURES.md).
 
@@ -124,6 +127,7 @@ GET  /api/insights/health
 GET  /api/insights/checklist
 GET  /api/groups/:id/settlements/suggest
 ```
+<img width="1919" height="884" alt="image" src="https://github.com/user-attachments/assets/8f2759c3-c68e-4ddc-b46f-a97dd8c9cc87" />
 
 ---
 ## 🛠️ Development Tips
@@ -179,6 +183,7 @@ stdDev = sqrt(variance)
 - Bcrypt 12 rounds; rotate secret; consider rate limiting & lockout.
 - Improve: move token to HttpOnly cookie + refresh flow for production.
 - Limit anomaly endpoint exposure (auth already required).
+<img width="1240" height="864" alt="image" src="https://github.com/user-attachments/assets/dd0ec78b-b8e5-4dde-b51b-20dc8eff8492" />
 
 ---
 ## 🐞 Troubleshooting
