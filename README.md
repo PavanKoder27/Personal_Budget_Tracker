@@ -22,6 +22,10 @@
 - 🧪 **Deterministic Algorithms** – rolling stats, greedy settlement, recurrence advancement.
 
 ---
+<img width="1919" height="888" alt="Screenshot 2025-09-16 164622" src="https://github.com/user-attachments/assets/e104fc4e-b35a-4aaf-9207-3a44863058a7" />
+<img width="1919" height="888" alt="Screenshot 2025-09-16 164633" src="https://github.com/user-attachments/assets/a01f9b65-14e0-436a-b57e-90f28094ee1d" />
+
+
 ## 🗺️ Architecture Glimpse
 Mermaid diagrams & deeper design live in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
