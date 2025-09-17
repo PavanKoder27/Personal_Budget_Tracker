@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { CssBaseline } from '@mui/material';
+import Loader from './components/shared/Loader';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
@@ -20,7 +21,7 @@ import UMLDiagram from './components/UMLDiagram';
 // Layout that requires authentication
 const ProtectedLayout: React.FC = () => {
   const { user, loading } = useAuth();
-  if (loading) return <div />; // could add a spinner
+  if (loading) return <Loader fullScreen label="Checking session…" />;
   if (!user) return <Navigate to="/login" replace />;
   return (
     <Layout>
@@ -32,7 +33,7 @@ const ProtectedLayout: React.FC = () => {
 // Prevent logged in users from seeing login/register again
 const PublicOnlyRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return <div />;
+  if (loading) return <Loader fullScreen label="Preparing…" />;
   if (user) return <Navigate to="/dashboard" replace />;
   return children;
 };

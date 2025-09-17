@@ -8,6 +8,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AnimatedBackground from './AnimatedBackground';
+import TransactionForm from './TransactionForm';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
@@ -55,6 +56,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const toggleMobile = () => setMobileOpen(p => !p);
+  const [quickOpen, setQuickOpen] = React.useState(false);
 
   const activeMatch = (path: string) => location.pathname === path;
 
@@ -417,10 +419,22 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         color="secondary"
         aria-label="add"
         sx={{ position: 'fixed', right: 20, bottom: 24, zIndex: 1300, transition: 'transform 200ms ease, box-shadow 200ms ease', '&:hover': { transform: 'translateY(-6px) scale(1.06)', boxShadow: theme => `0 12px 30px ${theme.palette.mode === 'light' ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.4)'}` } }}
-        onClick={() => handleNavigation('/transactions')}
+        onClick={() => setQuickOpen(true)}
       >
         <AddIcon />
       </Fab>
+      {/* Quick Add dialog (reuses TransactionForm) */}
+      <TransactionForm
+        open={quickOpen}
+        onClose={() => setQuickOpen(false)}
+        onSuccess={() => {
+          setQuickOpen(false);
+          // If currently on transactions page, a local fetch will run; otherwise, optionally navigate
+          if (location.pathname !== '/transactions') {
+            navigate('/transactions');
+          }
+        }}
+      />
     </Box>
   );
 };

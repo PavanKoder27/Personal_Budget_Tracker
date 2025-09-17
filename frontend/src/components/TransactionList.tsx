@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Chip, Typography, Box, Button, useTheme, ButtonGroup } from '@mui/material';
+import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Chip, Typography, Box, Button, useTheme, ButtonGroup, Skeleton } from '@mui/material';
 import PageHeading from './shared/PageHeading';
 import { Edit, Delete, Add } from '@mui/icons-material';
 import api from '../services/api';
 import TransactionForm from './TransactionForm';
 import { Transaction } from '../types';
+import EmptyState from './shared/EmptyState';
 
 const TransactionList: React.FC = () => {
   const theme = useTheme();
   const darkMode = theme.palette.mode === 'dark';
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
   const [keyword, setKeyword] = useState('');
@@ -20,6 +22,7 @@ const TransactionList: React.FC = () => {
 
   const fetchTransactions = async () => {
     try {
+      setLoading(true);
       const params: Record<string,string> = {};
       if (keyword.trim()) params.q = keyword.trim();
       if (filterType) params.type = filterType;
@@ -31,6 +34,7 @@ const TransactionList: React.FC = () => {
       const list: Transaction[] = Array.isArray(payload) ? payload : (Array.isArray(payload?.data)? payload.data: []);
       setTransactions(list);
     } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
   useEffect(()=>{ fetchTransactions(); }, []);
@@ -71,19 +75,44 @@ const TransactionList: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {transactions.map(t => (
-              <TableRow key={t._id}>
-                <TableCell>{new Date(t.date).toLocaleDateString()}</TableCell>
-                <TableCell><Chip label={t.type} color={t.type==='income'? 'success':'error'} size="small" /></TableCell>
-                <TableCell>{t.category}</TableCell>
-                <TableCell>{t.description}</TableCell>
-                <TableCell align="right">₹{t.amount.toLocaleString()}</TableCell>
-                <TableCell align="center">
-                  <IconButton size="small" onClick={()=>handleEdit(t)}><Edit /></IconButton>
-                  <IconButton size="small" onClick={()=>handleDelete(t._id)}><Delete /></IconButton>
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton width={90} /></TableCell>
+                  <TableCell><Skeleton width={60} /></TableCell>
+                  <TableCell><Skeleton width={120} /></TableCell>
+                  <TableCell><Skeleton width={220} /></TableCell>
+                  <TableCell align="right"><Skeleton width={80} /></TableCell>
+                  <TableCell align="center"><Skeleton width={80} /></TableCell>
+                </TableRow>
+              ))
+            ) : transactions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6}>
+                  <EmptyState
+                    emoji="🧾"
+                    title="No transactions yet"
+                    description="Start by adding your first income or expense to see them listed here."
+                    actionText="Add Transaction"
+                    onAction={() => setFormOpen(true)}
+                  />
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              transactions.map(t => (
+                <TableRow key={t._id}>
+                  <TableCell>{new Date(t.date).toLocaleDateString()}</TableCell>
+                  <TableCell><Chip label={t.type} color={t.type==='income'? 'success':'error'} size="small" /></TableCell>
+                  <TableCell>{t.category}</TableCell>
+                  <TableCell>{t.description}</TableCell>
+                  <TableCell align="right">₹{t.amount.toLocaleString()}</TableCell>
+                  <TableCell align="center">
+                    <IconButton size="small" onClick={()=>handleEdit(t)}><Edit /></IconButton>
+                    <IconButton size="small" onClick={()=>handleDelete(t._id)}><Delete /></IconButton>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </TableContainer>

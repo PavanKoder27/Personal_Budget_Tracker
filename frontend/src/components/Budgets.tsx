@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Paper, Grid, LinearProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, IconButton, ButtonGroup, Button } from '@mui/material';
+import { Box, Typography, Paper, Grid, LinearProgress, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, IconButton, ButtonGroup, Button, Skeleton } from '@mui/material';
 import PageHeading from './shared/PageHeading';
 import AnimatedButton from './shared/AnimatedButton';
 import api from '../services/api';
@@ -7,6 +7,7 @@ import { Budget, BudgetStatusItem } from '../types';
 import { useTheme } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
+import EmptyState from './shared/EmptyState';
 
 const categories = [
   'Food & Dining', 'Transportation', 'Shopping', 'Entertainment', 'Bills & Utilities', 'Healthcare', 'Education', 'Travel', 'Salary', 'Investment', 'Other'
@@ -25,9 +26,11 @@ const Budgets: React.FC = () => {
 
   const fetchStatus = async () => {
     try {
-  const res = await api.get<BudgetStatusItem[]>('/budgets/status');
-  setStatus(Array.isArray(res.data) ? res.data : []);
+      setLoading(true);
+      const res = await api.get<BudgetStatusItem[]>('/budgets/status');
+      setStatus(Array.isArray(res.data) ? res.data : []);
     } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { fetchStatus(); }, []);
@@ -57,7 +60,29 @@ const Budgets: React.FC = () => {
         </Box>
       </Box>
       <Grid container spacing={3}>
-        {status.map(item => {
+        {loading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <Grid item xs={12} md={6} lg={4} key={i}>
+              <Paper sx={{ p: 3, borderRadius: 4 }}>
+                <Skeleton variant="text" width={180} height={28} />
+                <Skeleton variant="text" width={260} height={20} />
+                <Skeleton variant="rectangular" height={12} sx={{ borderRadius: 6, my: 1 }} />
+                <Skeleton variant="text" width={180} height={16} />
+              </Paper>
+            </Grid>
+          ))
+        ) : status.length === 0 ? (
+          <Grid item xs={12}>
+            <EmptyState
+              emoji="📊"
+              title="No budgets set for this month"
+              description="Create category-wise budgets to track your spending against targets."
+              actionText="Add Budget"
+              onAction={() => setOpen(true)}
+            />
+          </Grid>
+        ) : (
+        status.map(item => {
           const pct = Math.min(100, Math.round(item.percentage));
           const over = pct >= 100;
           return (
@@ -72,7 +97,8 @@ const Budgets: React.FC = () => {
               </Paper>
             </Grid>
           );
-        })}
+        }))
+        }
       </Grid>
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
