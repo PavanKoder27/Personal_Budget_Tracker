@@ -50,7 +50,10 @@ export const AuthProvider = ({ children }: { children: React.ReactElement }) => 
     const init = async () => {
       await refreshHealth();
       const token = localStorage.getItem('token');
-      if (token) {
+      const sessionActive = (()=>{ try { return sessionStorage.getItem('sessionActive') === '1'; } catch { return false; } })();
+      // Only resume auth automatically if this browser session was previously authenticated.
+      // This ensures a fresh run starts at the login page even if a token exists in localStorage.
+      if (token && sessionActive) {
         await checkAuth();
       } else {
         setLoading(false);
@@ -102,6 +105,7 @@ export const AuthProvider = ({ children }: { children: React.ReactElement }) => 
       const response = await api.post<{ token: string; user: User }>('/auth/login', { email, password });
       const { token, user } = response.data;
       localStorage.setItem('token', token);
+      try { sessionStorage.setItem('sessionActive', '1'); } catch {}
       try { localStorage.setItem('savedEmail', email); } catch {}
       setUser(user);
       notify?.show('Logged in successfully', 'success');
@@ -138,6 +142,7 @@ export const AuthProvider = ({ children }: { children: React.ReactElement }) => 
       const response = await api.post<{ token: string; user: User }>('/auth/register', { name, email, password });
       const { token, user } = response.data;
       localStorage.setItem('token', token);
+      try { sessionStorage.setItem('sessionActive', '1'); } catch {}
       try { localStorage.setItem('savedEmail', email); } catch {}
       setUser(user);
       notify?.show('Welcome! Account created.', 'success');
@@ -157,6 +162,7 @@ export const AuthProvider = ({ children }: { children: React.ReactElement }) => 
 
   const logout = () => {
     localStorage.removeItem('token');
+    try { sessionStorage.removeItem('sessionActive'); } catch {}
     setUser(null);
     notify?.show('Logged out', 'info');
   };
