@@ -78,7 +78,8 @@ export interface BudgetStatusItem {
 // Added: Group related types
 export interface GroupMember {
   _id?: string; // mongo subdocument id for member
-  user: string; // user id (may be placeholder)
+  user: string; // populated ref or id
+  userId?: string; // original id preserved from backend for placeholders
   name: string;
   email?: string; // if populated user ref has email
   isAdmin?: boolean;

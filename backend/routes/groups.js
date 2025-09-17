@@ -4,13 +4,25 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
+// Utility: return a plain object version of a group preserving original member.user id
+async function toObjectWithUserId(groupDoc) {
+  if (!groupDoc) return groupDoc;
+  const raw = groupDoc.toObject();
+  // Preserve the original ObjectId for placeholders or when populate yields null
+  raw.members = (raw.members || []).map(m => ({
+    ...m,
+    userId: m.user // original id before populate
+  }));
+  // Populate for convenience (adds members.user with user doc if exists)
+  await Group.populate(raw, { path: 'members.user', select: 'name email profilePicture' });
+  return raw;
+}
+
 // Get user's groups
 router.get('/', auth, async (req, res) => {
   try {
-    const groups = await Group.find({
-      'members.user': req.user._id
-    }).populate('members.user', 'name email');
-    
+    const docs = await Group.find({ 'members.user': req.user._id });
+    const groups = await Promise.all(docs.map(g => toObjectWithUserId(g)));
     res.json(groups);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -20,11 +32,12 @@ router.get('/', auth, async (req, res) => {
 // Get single group (populated) if member
 router.get('/:id', auth, async (req, res) => {
   try {
-    const group = await Group.findById(req.params.id).populate('members.user', 'name email');
+    const group = await Group.findById(req.params.id);
     if(!group) return res.status(404).json({ message: 'Group not found' });
     const isMember = group.members.some(m => m.user && m.user.toString() === req.user._id.toString());
     if(!isMember) return res.status(403).json({ message: 'Not a member' });
-    res.json(group);
+    const out = await toObjectWithUserId(group);
+    res.json(out);
   } catch(error){
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -46,8 +59,9 @@ router.post('/', auth, async (req, res) => {
       createdBy: req.user._id
     });
     
-    await group.save();
-    res.status(201).json(group);
+  await group.save();
+  const out = await toObjectWithUserId(group);
+  res.status(201).json(out);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -103,9 +117,9 @@ router.post('/:id/members', auth, async (req, res) => {
     console.log('[ADD MEMBER] group saved. Members count now', group.members.length);
 
     // Return refreshed group populated for UI convenience
-    const populated = await Group.findById(group._id).populate('members.user', 'name email profilePicture');
-    console.log('[ADD MEMBER] success respond groupId', group._id);
-    res.json(populated);
+  const populated = await toObjectWithUserId(await Group.findById(group._id));
+  console.log('[ADD MEMBER] success respond groupId', group._id);
+  res.json(populated);
   } catch (error) {
     console.error('[ADD MEMBER] error', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -122,9 +136,9 @@ router.patch('/:id', auth, async (req, res) => {
     if(!admin) return res.status(403).json({ message: 'Not authorized' });
     if(typeof name === 'string' && name.trim()) group.name = name.trim();
     if(typeof description === 'string') group.description = description;
-    await group.save();
-    const populated = await Group.findById(group._id).populate('members.user','name email');
-    res.json(populated);
+  await group.save();
+  const populated = await toObjectWithUserId(await Group.findById(group._id));
+  res.json(populated);
   } catch(error){
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -143,9 +157,9 @@ router.patch('/:id/members/:memberId/role', auth, async (req, res) => {
     member.isAdmin = !!isAdmin;
     // Ensure at least one admin remains
     if(!group.members.some(m => m.isAdmin)) { member.isAdmin = true; }
-    await group.save();
-    const populated = await Group.findById(group._id).populate('members.user','name email');
-    res.json(populated);
+  await group.save();
+  const populated = await toObjectWithUserId(await Group.findById(group._id));
+  res.json(populated);
   } catch(error){
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -190,19 +204,60 @@ router.post('/:id/expenses', auth, async (req, res) => {
     if (!isMember) {
       return res.status(403).json({ message: 'Not a member of this group' });
     }
-    
+
+    // Basic validation
+    if (typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ message: 'Amount must be a positive number' });
+    }
+    if (!description || typeof description !== 'string' || !description.trim()) {
+      return res.status(400).json({ message: 'Description is required' });
+    }
+    if (!Array.isArray(splits) || splits.length === 0) {
+      return res.status(400).json({ message: 'At least one split is required' });
+    }
+
+    // Normalize and validate splits: valid ObjectId and member of group
+    const mongoose = require('mongoose');
+    const memberIds = new Set(group.members.map(m => m.user.toString()));
+    let sum = 0;
+    const normSplits = [];
+    for (const s of splits) {
+      if (!s || s.amount == null || typeof s.amount !== 'number' || s.amount < 0) {
+        return res.status(400).json({ message: 'Each split must include a non-negative amount' });
+      }
+      let uid = s.user;
+      if (!uid || typeof uid !== 'string') {
+        return res.status(400).json({ message: 'Each split must include a valid user id' });
+      }
+      // Validate ObjectId
+      try { uid = new mongoose.Types.ObjectId(uid).toString(); } catch { return res.status(400).json({ message: 'Invalid split user id' }); }
+      if (!memberIds.has(uid)) {
+        return res.status(400).json({ message: 'Split includes a user that is not a member of this group' });
+      }
+      sum += s.amount;
+      normSplits.push({ user: uid, amount: s.amount });
+    }
+    // Allow tiny rounding mismatch
+    if (Math.abs(sum - amount) > 0.05) {
+      return res.status(400).json({ message: `Splits total (${sum}) does not equal amount (${amount})` });
+    }
+
     const expense = new GroupExpense({
       group: req.params.id,
       paidBy: req.user._id,
       amount,
       description,
       category: category || 'General',
-      splits
+      splits: normSplits
     });
     
     await expense.save();
     res.status(201).json(expense);
   } catch (error) {
+    // Provide friendlier error for common cast/validation errors
+    if (error && (error.name === 'ValidationError' || error.name === 'CastError')) {
+      return res.status(400).json({ message: 'Invalid expense data', error: error.message });
+    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

@@ -51,7 +51,8 @@ const Groups: React.FC = () => {
 
   useEffect(()=>{ fetchGroups(); }, []);
 
-  const memberId = (m:any) => (typeof m.user === 'string' ? m.user : (m.user && (m.user as any)._id) || m.user) as string;
+  // Prefer backend-provided stable userId (original ObjectId) to support placeholders, then fall back to populated user._id
+  const memberId = (m:any) => (m.userId || (typeof m.user === 'string' ? m.user : (m.user && (m.user as any)._id) || m.user)) as string;
   const openGroup = async (g: Group) => { 
     setSelectedGroup(g); 
     fetchBalances(g._id); 
@@ -84,15 +85,21 @@ const Groups: React.FC = () => {
   };
 
   const addExpense = async () => {
-    if(!selectedGroup || !expenseForm.amount || !expenseForm.description) return;
+    if(!selectedGroup || !expenseForm.amount || !expenseForm.description) { show('Fill in amount and description','warning'); return; }
     if(!validateAndAdjustSplits()) return;
-    const payload: any = { amount: expenseForm.amount, description: expenseForm.description, category: expenseForm.category, splits: percentMode ? expenseForm.splits.map(s=> ({ user: s.user, amount: Number(((s.amount||0)/100*expenseForm.amount).toFixed(2)) })) : expenseForm.splits };
-    await api.post(`/groups/${selectedGroup._id}/expenses`, payload); 
-    setOpenExpense(false); 
-    setExpenseForm({ amount:0, description:'', category:'General', splits:[]}); 
-    setPercentMode(false);
-    fetchBalances(selectedGroup._id); 
-    openGroup(selectedGroup);
+    try {
+      const payload: any = { amount: expenseForm.amount, description: expenseForm.description, category: expenseForm.category, splits: percentMode ? expenseForm.splits.map(s=> ({ user: s.user, amount: Number(((s.amount||0)/100*expenseForm.amount).toFixed(2)) })) : expenseForm.splits };
+      await api.post(`/groups/${selectedGroup._id}/expenses`, payload);
+      setOpenExpense(false);
+      setExpenseForm({ amount:0, description:'', category:'General', splits:[]});
+      setPercentMode(false);
+      fetchBalances(selectedGroup._id);
+      openGroup(selectedGroup);
+      show('Expense added','success');
+    } catch(e:any){
+      const msg = e?.response?.data?.message || 'Failed to add expense';
+      show(msg, 'error');
+    }
   };
 
   const isAdmin = (g?: Group | null) => {
