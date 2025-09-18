@@ -32,7 +32,7 @@ const Reports: React.FC = () => {
     try { const res = await api.get<Summary>(`/transactions/summary?month=${month}&year=${year}`); setSummary(res.data);} catch(e){console.error(e);} };
   const fetchBudgetStatus = async () => {
     setLoadingBudgets(true);
-    try { const res = await api.get<BudgetStatusItem[]>(`/budget/status?month=${month}&year=${year}`); setBudgetStatus(res.data);} catch(e){ console.error(e);} finally { setLoadingBudgets(false);} };
+    try { const res = await api.get<BudgetStatusItem[]>(`/budgets/status?month=${month}&year=${year}`); setBudgetStatus(res.data);} catch(e){ console.error(e);} finally { setLoadingBudgets(false);} };
   const fetchMonthTransactions = async () => {
     setLoadingTx(true);
     try {
@@ -137,8 +137,9 @@ const Reports: React.FC = () => {
 
   const beginEdit = (cat: string, current: number) => { setEditingBudgetCat(cat); setBudgetDraft(current || 0); };
   const saveBudget = async (cat: string) => {
+    if (!budgetDraft || budgetDraft <= 0) { console.warn('Budget amount must be > 0'); return; }
     try {
-      await api.post('/budget', { category: cat, amount: budgetDraft, month, year });
+      await api.post('/budgets', { category: cat, amount: budgetDraft, month, year });
       setEditingBudgetCat(null); fetchBudgetStatus();
     } catch(e){ console.error(e); }
   };
